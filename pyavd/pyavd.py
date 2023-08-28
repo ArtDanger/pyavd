@@ -47,6 +47,7 @@ class Device:
 class AVD:
     def __init__(self, name: str, device: Device, path: str, target: str, skin: str, sdcard_size: str, based_on: str,
                  abi: str) -> None:
+        self.adb_name_emu = None
         self.name = name
         self._device = device
         # Check if path exists
@@ -90,8 +91,24 @@ class AVD:
         """
         Delete the AVD
         """
-        cmd_args = [avd_cmd, "delete", "avd", "-n", self.name]
+        pattern = r"self.adb_name_emu"
+        matches = True
+
+        while matches:
+            cmd_args = ['adb', 'devices']
+            res = subprocess.run(
+                cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+            if res.stdout:
+                logger.info(res)
+            else:
+                logger.error(res.stderr)
+                break
+
+            matches = re.findall(pattern, res.stdout)  # return list
+
         try:
+            cmd_args = [avd_cmd, "delete", "avd", "-n", self.name]
             res = subprocess.run(
                 cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except OSError:
@@ -194,8 +211,8 @@ class AVD:
         # Wait for zombie process to exit
         self.process.wait()
 
-        name_emu = "emulator-" + port
-        cmd_args = ['adb', '-s', name_emu, 'emu', 'kill']
+        self.adb_name_emu = "emulator-" + port
+        cmd_args = ['adb', '-s', self.adb_name_emu, 'emu', 'kill']
         logger.info(f'command for stop emulator {cmd_args}')
         try:
             res = subprocess.run(
